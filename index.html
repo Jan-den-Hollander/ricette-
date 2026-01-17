@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>Mijn Receptenboek - Il mio ricettario</title>
+    <style>
+        /* CSS Reset voor box-sizing zorgt dat breedtes kloppen */
+        * { -webkit-box-sizing: border-box; -moz-box-sizing: border-box; box-sizing: border-box; }
+        
+        body { font-family: Arial, sans-serif; background-color: #fdf6e3; margin: 10px; line-height: 1.5; }
+        .container { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); max-width: 1000px; margin: auto; overflow: hidden; }
+        .sectie { background: #fafafa; padding: 15px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 20px; width: 100%; }
+        h1 { color: #d35400; border-bottom: 2px solid #d35400; padding-bottom: 10px; font-size: 22px; }
+        h3 { margin-top: 0; color: #2e7d32; font-size: 18px; }
+        
+        .backup-alert { background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 13px; }
+        
+        label { display: block; font-weight: bold; margin-top: 10px; margin-bottom: 3px; }
+        
+        /* Velden aanpassen zodat ze nooit buiten de rand vallen */
+        input[type="text"], input[type="date"], select, textarea { 
+            width: 100%; 
+            max-width: 100%;
+            padding: 8px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            display: block;
+        }
+        
+        /* Flexbox layout voor kolommen */
+        .row { display: block; width: 100%; }
+        .column { width: 100%; margin-bottom: 10px; }
+        
+        /* Voor iets modernere browsers die naast elkaar kunnen tonen */
+        @media (min-width: 600px) {
+            .row { display: flex; flex-wrap: wrap; margin-left: -10px; margin-right: -10px; }
+            .column { flex: 1; padding: 0 10px; min-width: 250px; }
+        }
+        
+        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; margin-top: 10px; display: inline-block; }
+        .btn-save { background-color: #28a745; }
+        .btn-backup { background-color: #17a2b8; }
+        .btn-restore { background-color: #6f42c1; }
+        .btn-delete { background-color: #dc3545; padding: 5px 8px; font-size: 11px; }
+        .btn-edit { background-color: #ffc107; color: #000; padding: 5px 8px; font-size: 11px; }
+        
+        #zoekveld { background-color: #e8f5e9; border: 2px solid #2e7d32; font-size: 16px; margin-bottom: 10px; }
+        
+        .tabel-container { width: 100%; overflow-x: auto; } /* Zorgt dat tabel niet uit beeld loopt op mobiel */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; min-width: 600px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 13px; }
+        th { background-color: #e8f5e9; color: #2e7d32; }
+        
+        .edit-mode { border: 2px solid #ffc107 !important; background-color: #fffde7 !important; }
+        #backup-vak { display:none; margin-top:10px; background: #e9ecef; padding: 15px; border: 2px dashed #666; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🍳 Mijn Recepten - Il mio ricettario</h1>
+
+    <div class="backup-alert">
+        ⚠️ Maak regelmatig een backup! / Salva regolarmente un backup!
+    </div>
+
+    <div class="sectie">
+        <h3>🔍 Zoeken - Cerca</h3>
+        <input type="text" id="zoekveld" onkeyup="toonRecepten()" placeholder="Zoek op naam, ingrediënt... Cerca...">
+    </div>
+
+    <div class="sectie" id="formulier-sectie">
+        <h3 id="form-titel">➕ Nieuw recept - Nuova ricetta</h3>
+        <input type="hidden" id="bewerk-id"> 
+        
+        <div class="row">
+            <div class="column">
+                <label>Naam recept - Nome</label>
+                <input type="text" id="receptnaam">
+                
+                <label>Ingrediënten - Ingredienti</label>
+                <textarea id="ingredienten" rows="4"></textarea>
+                
+                <label>Type gerecht - Tipo</label>
+                <input type="text" id="soort_gerecht">
+            </div>
+            
+            <div class="column">
+                <label>Moeilijkheid - Difficoltà</label>
+                <select id="moeilijkheid">
+                    <option value="Makkelijk">Makkelijk - Facile</option>
+                    <option value="Gemiddeld">Gemiddeld - Medio</option>
+                    <option value="Moeilijk">Moeilijk - Difficile</option>
+                </select>
+
+                <label>Ervaring - Esperienza</label>
+                <input type="text" id="ervaring">
+
+                <label>Extra info (v.b. Pasen)</label>
+                <input type="text" id="extra_info">
+            </div>
+        </div>
+
+        <label>Bereidingswijze - Preparazione</label>
+        <textarea id="bereiding" rows="6"></textarea>
+        
+        <button class="btn btn-save" id="save-btn" onclick="voegReceptToe()">Opslaan - Salva</button>
+        <button class="btn" style="background-color: #6c757d; display:none;" id="cancel-btn" onclick="resetFormulier()">Annuleren</button>
+    </div>
+
+    <div class="sectie">
+        <h3>💾 Backup</h3>
+        <button class="btn btn-backup" onclick="maakBackup()">Maak Backup</button>
+        <button class="btn btn-restore" onclick="toonHerstelVak()">Herstel Backup</button>
+        
+        <div id="backup-vak">
+            <textarea id="backup-tekstveld" rows="5"></textarea>
+            <button class="btn btn-restore" onclick="voerHerstelUit()">Nu Herstellen</button>
+        </div>
+    </div>
+
+    <div class="tabel-container">
+        <table id="receptenTabel">
+            <thead>
+                <tr>
+                    <th>Naam - Nome</th>
+                    <th>Type</th>
+                    <th>Moeilijkheid</th>
+                    <th>Ervaring</th>
+                    <th>Acties</th>
+                </tr>
+            </thead>
+            <tbody id="tabelInhoud"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // JavaScript is ongewijzigd gebleven (ES5 compatibel) om de werking te garanderen
+    function haalReceptenOp() {
+        var data = localStorage.getItem('mijnReceptenboek');
+        return data ? JSON.parse(data) : [];
+    }
+
+    function voegReceptToe() {
+        var recepten = haalReceptenOp();
+        var bewerkId = document.getElementById('bewerk-id').value;
+        var r = {
+            id: bewerkId ? parseInt(bewerkId) : new Date().getTime(),
+            naam: document.getElementById('receptnaam').value,
+            ingr: document.getElementById('ingredienten').value,
+            soort: document.getElementById('soort_gerecht').value,
+            moeil: document.getElementById('moeilijkheid').value,
+            erv: document.getElementById('ervaring').value,
+            extra: document.getElementById('extra_info').value,
+            ber: document.getElementById('bereiding').value
+        };
+        if(!r.naam) { alert("Naam verplicht!"); return; }
+        if (bewerkId) {
+            for (var i = 0; i < recepten.length; i++) {
+                if (recepten[i].id == bewerkId) { recepten[i] = r; break; }
+            }
+        } else { recepten.push(r); }
+        localStorage.setItem('mijnReceptenboek', JSON.stringify(recepten));
+        resetFormulier();
+        toonRecepten();
+    }
+
+    function openBewerken(id) {
+        var recepten = haalReceptenOp();
+        var r = null;
+        for (var i = 0; i < recepten.length; i++) {
+            if (recepten[i].id === id) { r = recepten[i]; break; }
+        }
+        if (r) {
+            document.getElementById('bewerk-id').value = r.id;
+            document.getElementById('receptnaam').value = r.naam;
+            document.getElementById('ingredienten').value = r.ingr;
+            document.getElementById('soort_gerecht').value = r.soort;
+            document.getElementById('moeilijkheid').value = r.moeil;
+            document.getElementById('ervaring').value = r.erv;
+            document.getElementById('extra_info').value = r.extra;
+            document.getElementById('bereiding').value = r.ber;
+            document.getElementById('cancel-btn').style.display = "inline-block";
+            document.getElementById('formulier-sectie').className = 'sectie edit-mode';
+            window.scrollTo(0,0);
+        }
+    }
+
+    function resetFormulier() {
+        document.getElementById('bewerk-id').value = '';
+        document.getElementById('receptnaam').value = '';
+        document.getElementById('ingredienten').value = '';
+        document.getElementById('soort_gerecht').value = '';
+        document.getElementById('moeilijkheid').value = 'Makkelijk';
+        document.getElementById('ervaring').value = '';
+        document.getElementById('extra_info').value = '';
+        document.getElementById('bereiding').value = '';
+        document.getElementById('cancel-btn').style.display = "none";
+        document.getElementById('formulier-sectie').className = 'sectie';
+    }
+
+    function toonRecepten() {
+        var recepten = haalReceptenOp();
+        var zoek = document.getElementById('zoekveld').value.toLowerCase();
+        var tabel = document.getElementById('tabelInhoud');
+        tabel.innerHTML = '';
+        for (var i = 0; i < recepten.length; i++) {
+            var r = recepten[i];
+            if ((r.naam + r.ingr).toLowerCase().indexOf(zoek) > -1) {
+                var rij = tabel.insertRow(-1);
+                rij.innerHTML = "<td>" + r.naam + "</td><td>" + r.soort + "</td><td>" + r.moeil + "</td><td>" + r.erv + "</td>" +
+                                "<td><button class='btn btn-edit' onclick='openBewerken(" + r.id + ")'>🖊️</button>" +
+                                "<button class='btn btn-delete' onclick='verwijderRecept(" + r.id + ")'>X</button></td>";
+            }
+        }
+    }
+
+    function verwijderRecept(id) {
+        if(confirm("Verwijderen?")) {
+            var recepten = haalReceptenOp();
+            var nieuw = [];
+            for (var i = 0; i < recepten.length; i++) {
+                if (recepten[i].id !== id) nieuw.push(recepten[i]);
+            }
+            localStorage.setItem('mijnReceptenboek', JSON.stringify(nieuw));
+            toonRecepten();
+        }
+    }
+
+    function maakBackup() {
+        var r = haalReceptenOp();
+        document.getElementById('backup-vak').style.display = 'block';
+        document.getElementById('backup-tekstveld').value = JSON.stringify(r);
+    }
+
+    function toonHerstelVak() {
+        document.getElementById('backup-vak').style.display = 'block';
+        document.getElementById('backup-tekstveld').value = '';
+    }
+
+    function voerHerstelUit() {
+        try {
+            var data = JSON.parse(document.getElementById('backup-tekstveld').value);
+            localStorage.setItem('mijnReceptenboek', JSON.stringify(data));
+            location.reload();
+        } catch (e) { alert("Foutieve tekst!"); }
+    }
+
+    window.onload = toonRecepten;
+</script>
+</body>
+</html>
